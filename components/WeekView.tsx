@@ -12,8 +12,7 @@ type Props = {
 export default function WeekView({ dates, shifts, onAddShift, onEditShift }: Props) {
   return (
     <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
+      showsVerticalScrollIndicator={false}
       style={styles.scroll}
       contentContainerStyle={styles.content}
     >
@@ -32,5 +31,5 @@ export default function WeekView({ dates, shifts, onAddShift, onEditShift }: Pro
 
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
-  content: { padding: 12, flexDirection: 'row' },
+  content: { padding: 12, gap: 10 },
 });
