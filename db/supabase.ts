@@ -11,7 +11,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-export type Employee = { id: number; name: string; role: 'tech' | 'manager' };
+export type Employee = { id: number; name: string; role: string };
 export type Shift = {
   id: number;
   employee_id: number;
@@ -42,7 +42,7 @@ export async function getEmployees(): Promise<Employee[]> {
   return (data ?? []) as Employee[];
 }
 
-export async function addEmployee(name: string, role: 'tech' | 'manager'): Promise<void> {
+export async function addEmployee(name: string, role: string): Promise<void> {
   const { error } = await supabase.from('employees').insert({ name, role });
   if (error) throw error;
 }

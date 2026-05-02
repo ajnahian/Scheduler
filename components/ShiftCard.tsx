@@ -6,10 +6,14 @@ type Props = {
   onPress: (shift: Shift) => void;
 };
 
+function isManager(role: string) {
+  return role.includes('Manager') || role.includes('Mgr');
+}
+
 export default function ShiftCard({ shift, onPress }: Props) {
   return (
     <TouchableOpacity
-      style={[styles.card, shift.role === 'manager' ? styles.manager : styles.tech]}
+      style={[styles.card, isManager(shift.role) ? styles.manager : styles.tech]}
       onPress={() => onPress(shift)}
     >
       <Text style={styles.name}>{shift.employee_name}</Text>
