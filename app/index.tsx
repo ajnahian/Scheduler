@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   initDatabase, getShiftsForWeek, getEmployees,
   addShift, updateShift, deleteShift,
