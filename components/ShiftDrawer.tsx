@@ -7,6 +7,24 @@ import type { Employee, Shift } from '../db/database';
 import TimePicker from './TimePicker';
 import { getRoleColor } from '../constants/roles';
 
+const DURATIONS = [4, 5, 6, 7, 8, 9];
+
+function calcEndTime(startTime: string, hours: number): string {
+  const [h, m] = startTime.split(':').map(Number);
+  const total = h * 60 + m + hours * 60;
+  const eh = Math.floor(total / 60) % 24;
+  const em = total % 60;
+  return `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
+}
+
+function deriveDuration(start: string, end: string): number {
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  const diff = ((eh * 60 + em) - (sh * 60 + sm) + 1440) % 1440;
+  const hours = Math.round(diff / 60);
+  return Math.min(9, Math.max(4, hours));
+}
+
 type Props = {
   visible: boolean;
   date: string | null;
@@ -20,24 +38,26 @@ type Props = {
 export default function ShiftDrawer({ visible, date, shift, employees, onSave, onDelete, onClose }: Props) {
   const [selectedEmployee, setSelectedEmployee] = useState<number | null>(null);
   const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
+  const [duration, setDuration] = useState(8);
 
   useEffect(() => {
     if (visible) {
       if (shift) {
         setSelectedEmployee(shift.employee_id);
         setStartTime(shift.start_time);
-        setEndTime(shift.end_time);
+        setDuration(deriveDuration(shift.start_time, shift.end_time));
       } else {
         setSelectedEmployee(employees[0]?.id ?? null);
         setStartTime('');
-        setEndTime('');
+        setDuration(8);
       }
     }
   }, [visible, shift, employees]);
 
+  const endTime = startTime ? calcEndTime(startTime, duration) : '';
+
   const handleSave = () => {
-    if (!selectedEmployee || !startTime || !endTime) return;
+    if (!selectedEmployee || !startTime) return;
     onSave(selectedEmployee, startTime, endTime);
   };
 
@@ -82,16 +102,35 @@ export default function ShiftDrawer({ visible, date, shift, employees, onSave, o
               style={styles.chipList}
             />
 
-            <View style={styles.timeRow}>
-              <View style={styles.timeField}>
-                <Text style={styles.label}>Start</Text>
-                <TimePicker value={startTime} onChange={setStartTime} placeholder="00:00" />
-              </View>
-              <View style={styles.timeField}>
-                <Text style={styles.label}>End</Text>
-                <TimePicker value={endTime} onChange={setEndTime} placeholder="00:00" />
-              </View>
+            {/* Start time */}
+            <Text style={styles.label}>Start Time</Text>
+            <TimePicker value={startTime} onChange={setStartTime} placeholder="Select start time" />
+
+            {/* Duration */}
+            <Text style={[styles.label, { marginTop: 14 }]}>Shift Duration</Text>
+            <View style={styles.durationRow}>
+              {DURATIONS.map(h => (
+                <TouchableOpacity
+                  key={h}
+                  style={[styles.durationBtn, duration === h && styles.durationBtnActive]}
+                  onPress={() => setDuration(h)}
+                >
+                  <Text style={[styles.durationText, duration === h && styles.durationTextActive]}>
+                    {h}h
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
+
+            {/* Auto end time */}
+            {startTime ? (
+              <View style={styles.endTimeRow}>
+                <Text style={styles.endTimeLabel}>Ends at</Text>
+                <Text style={styles.endTimeValue}>{endTime}</Text>
+              </View>
+            ) : (
+              <Text style={styles.endTimePlaceholder}>Select a start time to see end time</Text>
+            )}
 
             <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
               <Text style={styles.saveBtnText}>Save Shift</Text>
@@ -125,23 +164,49 @@ const styles = StyleSheet.create({
   title: { fontSize: 17, fontWeight: '600', marginBottom: 16, color: '#1d1d1f' },
   label: { fontSize: 13, color: '#6e6e73', marginBottom: 6 },
   noStaff: { color: '#6e6e73', textAlign: 'center', marginVertical: 20 },
+
+  // Employee chips
   chipList: { marginBottom: 16 },
   chip: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 12, paddingVertical: 8,
     borderRadius: 20, borderWidth: 1, borderColor: '#e0e0e0',
-    marginRight: 8, backgroundColor: '#f5f5f7', gap: 6,
+    marginRight: 8, backgroundColor: '#F2F2F7', gap: 6,
   },
   chipDot: { width: 8, height: 8, borderRadius: 4 },
   chipText: { fontSize: 14, color: '#1d1d1f' },
   chipTextSelected: { color: 'white', fontWeight: '600' },
-  timeRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
-  timeField: { flex: 1 },
+
+  // Duration
+  durationRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  durationBtn: {
+    flex: 1, paddingVertical: 10, borderRadius: 10,
+    borderWidth: 1, borderColor: '#e0e0e0',
+    backgroundColor: '#F2F2F7', alignItems: 'center',
+  },
+  durationBtnActive: { backgroundColor: '#007AFF', borderColor: '#007AFF' },
+  durationText: { fontSize: 14, fontWeight: '600', color: '#1d1d1f' },
+  durationTextActive: { color: 'white' },
+
+  // End time display
+  endTimeRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, marginBottom: 16,
+    backgroundColor: '#F2F2F7', borderRadius: 10, paddingVertical: 10,
+  },
+  endTimeLabel: { fontSize: 13, color: '#6e6e73' },
+  endTimeValue: { fontSize: 16, fontWeight: '700', color: '#1d1d1f' },
+  endTimePlaceholder: {
+    fontSize: 13, color: '#C7C7CC', textAlign: 'center',
+    marginBottom: 16, fontStyle: 'italic',
+  },
+
+  // Actions
   saveBtn: {
-    backgroundColor: '#007aff', borderRadius: 12,
+    backgroundColor: '#007AFF', borderRadius: 12,
     padding: 14, alignItems: 'center', marginBottom: 8,
   },
   saveBtnText: { color: 'white', fontWeight: '600', fontSize: 16 },
   deleteBtn: { padding: 14, alignItems: 'center' },
-  deleteBtnText: { color: '#ff3b30', fontWeight: '500', fontSize: 16 },
+  deleteBtnText: { color: '#FF3B30', fontWeight: '500', fontSize: 16 },
 });

@@ -9,6 +9,7 @@ import {
 import WeekView from '../components/WeekView';
 import ShiftDrawer from '../components/ShiftDrawer';
 import EmployeesModal from '../components/EmployeesModal';
+import { STAFF_TITLES, getRoleColor } from '../constants/roles';
 
 function toDateString(d: Date): string {
   const y = d.getFullYear();
@@ -68,20 +69,9 @@ export default function Index() {
     return `${weekStart.toLocaleDateString('en-US', opts)} – ${end.toLocaleDateString('en-US', opts)}`;
   })();
 
-  const openAddShift = (date: string) => {
-    setDrawerShift(null);
-    setDrawerDate(date);
-  };
-
-  const openEditShift = (shift: Shift) => {
-    setDrawerShift(shift);
-    setDrawerDate(shift.date);
-  };
-
-  const closeDrawer = () => {
-    setDrawerDate(null);
-    setDrawerShift(null);
-  };
+  const openAddShift = (date: string) => { setDrawerShift(null); setDrawerDate(date); };
+  const openEditShift = (shift: Shift) => { setDrawerShift(shift); setDrawerDate(shift.date); };
+  const closeDrawer = () => { setDrawerDate(null); setDrawerShift(null); };
 
   const handleSave = async (employeeId: number, startTime: string, endTime: string) => {
     if (drawerShift) {
@@ -116,7 +106,7 @@ export default function Index() {
           <Text style={styles.errorTitle}>Connection Error</Text>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={loadData}>
-            <Text style={styles.staffBtnText}>Retry</Text>
+            <Text style={styles.retryBtnText}>Retry</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -125,27 +115,29 @@ export default function Index() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Week navigation */}
       <View style={styles.header}>
-        <View>
+        <TouchableOpacity style={styles.weekNavBtn} onPress={() => setWeekStart(prev => addDays(prev, -7))}>
+          <Text style={styles.weekNavText}>← Prev{'\n'}Week</Text>
+        </TouchableOpacity>
+        <View style={styles.weekInfo}>
           <Text style={styles.weekLabel}>{weekLabel}</Text>
           <Text style={styles.coverageLabel}>
             {shifts.length} shift{shifts.length !== 1 ? 's' : ''} this week
           </Text>
         </View>
-        <TouchableOpacity style={styles.staffBtn} onPress={() => setShowEmployees(true)}>
-          <Text style={styles.staffBtnText}>Staff</Text>
+        <TouchableOpacity style={styles.weekNavBtn} onPress={() => setWeekStart(prev => addDays(prev, 7))}>
+          <Text style={[styles.weekNavText, styles.weekNavRight]}>Next{'\n'}Week →</Text>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.weekNav}>
-        <TouchableOpacity onPress={() => setWeekStart(prev => addDays(prev, -7))} style={styles.navBtn}>
-          <Text style={styles.navBtnText}>← Prev</Text>
+      {/* Today + Staff actions */}
+      <View style={styles.subHeader}>
+        <TouchableOpacity style={styles.todayBtn} onPress={() => setWeekStart(getWeekStart(new Date()))}>
+          <Text style={styles.todayBtnText}>Today</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setWeekStart(getWeekStart(new Date()))} style={styles.navBtn}>
-          <Text style={styles.navBtnText}>Today</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => setWeekStart(prev => addDays(prev, 7))} style={styles.navBtn}>
-          <Text style={styles.navBtnText}>Next →</Text>
+        <TouchableOpacity style={styles.staffBtn} onPress={() => setShowEmployees(true)}>
+          <Text style={styles.staffBtnText}>Staff</Text>
         </TouchableOpacity>
       </View>
 
@@ -155,6 +147,16 @@ export default function Index() {
         onAddShift={openAddShift}
         onEditShift={openEditShift}
       />
+
+      {/* Legend */}
+      <View style={styles.legend}>
+        {STAFF_TITLES.map(title => (
+          <View key={title} style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: getRoleColor(title) }]} />
+            <Text style={styles.legendText} numberOfLines={1}>{title}</Text>
+          </View>
+        ))}
+      </View>
 
       <ShiftDrawer
         visible={drawerDate !== null}
@@ -175,29 +177,72 @@ export default function Index() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f7' },
+  container: { flex: 1, backgroundColor: '#F2F2F7' },
+
+  // Header
   header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
     backgroundColor: 'white',
-    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
+    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, elevation: 3,
   },
-  weekLabel: { fontSize: 16, fontWeight: '600', color: '#1d1d1f' },
-  coverageLabel: { fontSize: 13, color: '#6e6e73', marginTop: 2 },
+  weekNavBtn: { paddingHorizontal: 10, paddingVertical: 6, minWidth: 72 },
+  weekNavText: { color: '#007AFF', fontSize: 13, fontWeight: '600', textAlign: 'left' },
+  weekNavRight: { textAlign: 'right' },
+  weekInfo: { flex: 1, alignItems: 'center' },
+  weekLabel: { fontSize: 15, fontWeight: '700', color: '#1d1d1f' },
+  coverageLabel: { fontSize: 12, color: '#6e6e73', marginTop: 1 },
+
+  // Sub-header
+  subHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: 'white',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#e0e0e0',
+  },
+  todayBtn: {
+    borderWidth: 1, borderColor: '#007AFF', borderRadius: 8,
+    paddingHorizontal: 14, paddingVertical: 5,
+  },
+  todayBtnText: { color: '#007AFF', fontWeight: '600', fontSize: 13 },
   staffBtn: {
-    backgroundColor: '#007aff', borderRadius: 8,
-    paddingHorizontal: 14, paddingVertical: 7,
+    backgroundColor: '#007AFF', borderRadius: 8,
+    paddingHorizontal: 14, paddingVertical: 6,
   },
-  staffBtnText: { color: 'white', fontWeight: '600', fontSize: 14 },
-  weekNav: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 8,
+  staffBtnText: { color: 'white', fontWeight: '600', fontSize: 13 },
+
+  // Legend
+  legend: {
+    backgroundColor: 'white',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#e0e0e0',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    rowGap: 6,
+    columnGap: 8,
   },
-  navBtn: { padding: 4 },
-  navBtnText: { color: '#007aff', fontSize: 14, fontWeight: '500' },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '48%',
+    gap: 6,
+  },
+  legendDot: { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
+  legendText: { fontSize: 11, color: '#1d1d1f', flex: 1 },
+
+  // Error / loading
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   centerText: { fontSize: 15, color: '#6e6e73' },
   errorTitle: { fontSize: 17, fontWeight: '600', color: '#1d1d1f', marginBottom: 8 },
   errorText: { fontSize: 14, color: '#6e6e73', textAlign: 'center', marginBottom: 20 },
-  retryBtn: { backgroundColor: '#007aff', borderRadius: 8, paddingHorizontal: 20, paddingVertical: 10 },
+  retryBtn: { backgroundColor: '#007AFF', borderRadius: 8, paddingHorizontal: 20, paddingVertical: 10 },
+  retryBtnText: { color: 'white', fontWeight: '600', fontSize: 14 },
 });
