@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import {
   Modal, View, Text, StyleSheet, TouchableOpacity,
-  TextInput, FlatList, KeyboardAvoidingView, Platform,
+  FlatList, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import type { Employee, Shift } from '../db/database';
+import TimePicker from './TimePicker';
 
 type Props = {
   visible: boolean;
@@ -78,23 +79,11 @@ export default function ShiftDrawer({ visible, date, shift, employees, onSave, o
             <View style={styles.timeRow}>
               <View style={styles.timeField}>
                 <Text style={styles.label}>Start</Text>
-                <TextInput
-                  style={styles.input}
-                  value={startTime}
-                  onChangeText={setStartTime}
-                  placeholder="10:00"
-                  placeholderTextColor="#aaa"
-                />
+                <TimePicker value={startTime} onChange={setStartTime} placeholder="00:00" />
               </View>
               <View style={styles.timeField}>
                 <Text style={styles.label}>End</Text>
-                <TextInput
-                  style={styles.input}
-                  value={endTime}
-                  onChangeText={setEndTime}
-                  placeholder="18:00"
-                  placeholderTextColor="#aaa"
-                />
+                <TimePicker value={endTime} onChange={setEndTime} placeholder="00:00" />
               </View>
             </View>
 
@@ -141,10 +130,6 @@ const styles = StyleSheet.create({
   chipTextSelected: { color: 'white' },
   timeRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
   timeField: { flex: 1 },
-  input: {
-    borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 10,
-    padding: 10, fontSize: 16, color: '#1d1d1f',
-  },
   saveBtn: {
     backgroundColor: '#007aff', borderRadius: 12,
     padding: 14, alignItems: 'center', marginBottom: 8,
