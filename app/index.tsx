@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  initDatabase, getShiftsForWeek, getEmployees,
+  getShiftsForWeek, getEmployees,
   addShift, updateShift, deleteShift,
   type Shift, type Employee,
 } from '../db/database';
@@ -38,13 +38,16 @@ export default function Index() {
   const [drawerShift, setDrawerShift] = useState<Shift | null>(null);
   const [showEmployees, setShowEmployees] = useState(false);
 
-  const loadData = useCallback(() => {
-    setShifts(getShiftsForWeek(toDateString(weekStart)));
-    setEmployees(getEmployees());
+  const loadData = useCallback(async () => {
+    const [fetchedShifts, fetchedEmployees] = await Promise.all([
+      getShiftsForWeek(toDateString(weekStart)),
+      getEmployees(),
+    ]);
+    setShifts(fetchedShifts);
+    setEmployees(fetchedEmployees);
   }, [weekStart]);
 
   useEffect(() => {
-    initDatabase();
     loadData();
   }, [loadData]);
 
@@ -71,18 +74,18 @@ export default function Index() {
     setDrawerShift(null);
   };
 
-  const handleSave = (employeeId: number, startTime: string, endTime: string) => {
+  const handleSave = async (employeeId: number, startTime: string, endTime: string) => {
     if (drawerShift) {
-      updateShift(drawerShift.id, employeeId, startTime, endTime);
+      await updateShift(drawerShift.id, employeeId, startTime, endTime);
     } else if (drawerDate) {
-      addShift(employeeId, drawerDate, startTime, endTime);
+      await addShift(employeeId, drawerDate, startTime, endTime);
     }
     closeDrawer();
     loadData();
   };
 
-  const handleDelete = () => {
-    if (drawerShift) deleteShift(drawerShift.id);
+  const handleDelete = async () => {
+    if (drawerShift) await deleteShift(drawerShift.id);
     closeDrawer();
     loadData();
   };

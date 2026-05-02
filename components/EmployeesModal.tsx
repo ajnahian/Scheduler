@@ -15,21 +15,24 @@ export default function EmployeesModal({ visible, onClose }: Props) {
   const [name, setName] = useState('');
   const [role, setRole] = useState<'tech' | 'manager'>('tech');
 
-  const reload = () => setEmployees(getEmployees());
+  const reload = async () => {
+    const data = await getEmployees();
+    setEmployees(data);
+  };
 
   useEffect(() => {
     if (visible) reload();
   }, [visible]);
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!name.trim()) return;
-    addEmployee(name.trim(), role);
+    await addEmployee(name.trim(), role);
     setName('');
     reload();
   };
 
-  const handleDelete = (id: number) => {
-    deleteEmployee(id);
+  const handleDelete = async (id: number) => {
+    await deleteEmployee(id);
     reload();
   };
 
@@ -65,6 +68,7 @@ export default function EmployeesModal({ visible, onClose }: Props) {
             onChangeText={setName}
             placeholder="Name"
             placeholderTextColor="#aaa"
+            onSubmitEditing={handleAdd}
           />
           <TouchableOpacity
             style={[styles.roleBtn, role === 'tech' && styles.roleBtnActive]}

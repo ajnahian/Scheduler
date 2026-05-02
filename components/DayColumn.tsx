@@ -9,15 +9,16 @@ type Props = {
   shifts: Shift[];
   onAddShift: (date: string) => void;
   onEditShift: (shift: Shift) => void;
+  isWide?: boolean;
 };
 
-export default function DayColumn({ date, shifts, onAddShift, onEditShift }: Props) {
+export default function DayColumn({ date, shifts, onAddShift, onEditShift, isWide }: Props) {
   const d = new Date(date + 'T00:00:00');
   const label = DAY_LABELS[d.getDay()];
   const dayNum = d.getDate();
 
   return (
-    <View style={styles.column}>
+    <View style={[styles.column, isWide && styles.columnWide]}>
       <View style={styles.header}>
         <View>
           <Text style={styles.dayLabel}>{label}</Text>
@@ -51,6 +52,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
+  },
+  columnWide: {
+    width: 200,
   },
   header: {
     flexDirection: 'row',

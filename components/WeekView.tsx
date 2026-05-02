@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
 import DayColumn from './DayColumn';
 import type { Shift } from '../db/database';
 
@@ -10,11 +10,16 @@ type Props = {
 };
 
 export default function WeekView({ dates, shifts, onAddShift, onEditShift }: Props) {
+  const { width } = useWindowDimensions();
+  const isWide = width >= 768;
+
   return (
     <ScrollView
+      horizontal={isWide}
       showsVerticalScrollIndicator={false}
+      showsHorizontalScrollIndicator={false}
       style={styles.scroll}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={isWide ? styles.contentWide : styles.content}
     >
       {dates.map(date => (
         <DayColumn
@@ -23,6 +28,7 @@ export default function WeekView({ dates, shifts, onAddShift, onEditShift }: Pro
           shifts={shifts.filter(s => s.date === date)}
           onAddShift={onAddShift}
           onEditShift={onEditShift}
+          isWide={isWide}
         />
       ))}
     </ScrollView>
@@ -32,4 +38,5 @@ export default function WeekView({ dates, shifts, onAddShift, onEditShift }: Pro
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
   content: { padding: 12, gap: 10 },
+  contentWide: { flexDirection: 'row', padding: 16, gap: 12 },
 });
