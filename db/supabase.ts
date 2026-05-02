@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
@@ -109,18 +110,10 @@ export async function deleteShift(id: number): Promise<void> {
 }
 
 export async function getClosingTime(): Promise<string> {
-  const { data, error } = await supabase
-    .from('settings')
-    .select('value')
-    .eq('key', 'closing_time')
-    .single();
-  if (error) return '21:00';
-  return (data as { value: string }).value;
+  const val = await AsyncStorage.getItem('closing_time');
+  return val ?? '21:00';
 }
 
 export async function setClosingTime(time: string): Promise<void> {
-  const { error } = await supabase
-    .from('settings')
-    .upsert({ key: 'closing_time', value: time });
-  if (error) throw error;
+  await AsyncStorage.setItem('closing_time', time);
 }
