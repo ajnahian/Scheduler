@@ -20,6 +20,7 @@ export default function EmployeesModal({ visible, onClose }: Props) {
   const [closingTime, setClosingTimeState] = useState('21:00');
   const [savingTime, setSavingTime] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle');
+  const [saveError, setSaveError] = useState('');
 
   const reload = async () => {
     const [data, ct] = await Promise.all([getEmployees(), getClosingTime()]);
@@ -48,12 +49,14 @@ export default function EmployeesModal({ visible, onClose }: Props) {
   const handleSaveClosingTime = async () => {
     setSavingTime(true);
     setSaveStatus('idle');
+    setSaveError('');
     try {
       await setClosingTime(closingTime);
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
-    } catch {
+    } catch (e: any) {
       setSaveStatus('error');
+      setSaveError(e?.message ?? 'Unknown error');
     } finally {
       setSavingTime(false);
     }
@@ -90,6 +93,9 @@ export default function EmployeesModal({ visible, onClose }: Props) {
                 </Text>
               </TouchableOpacity>
             </View>
+            {saveStatus === 'error' && saveError ? (
+              <Text style={styles.saveErrorText}>{saveError}</Text>
+            ) : null}
           </View>
 
           <View style={styles.divider} />
@@ -187,6 +193,7 @@ const styles = StyleSheet.create({
   saveTimeBtnSaved: { backgroundColor: '#34C759' },
   saveTimeBtnError: { backgroundColor: '#FF3B30' },
   saveTimeBtnText: { color: 'white', fontWeight: '600', fontSize: 14 },
+  saveErrorText: { fontSize: 11, color: '#FF3B30', marginTop: 6 },
 
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#e0e0e0', marginVertical: 12 },
 
