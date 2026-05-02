@@ -31,12 +31,7 @@ function addDays(date: Date, days: number): Date {
   return d;
 }
 
-// Split into two rows: 3 regular titles per row, Night Shift centered on last row
-const LEGEND_ROWS: (typeof STAFF_TITLES[number] | null)[][] = [
-  [STAFF_TITLES[0], STAFF_TITLES[1], STAFF_TITLES[2]],
-  [STAFF_TITLES[3], STAFF_TITLES[4], STAFF_TITLES[5]],
-  [null, NIGHT_SHIFT_TITLE, null],
-];
+const REGULAR_TITLES = STAFF_TITLES.slice(0, 6);
 
 export default function Index() {
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
@@ -160,20 +155,26 @@ export default function Index() {
 
       {/* Legend — 3 columns, Night Shift centered on its own row */}
       <View style={styles.legend}>
-        {LEGEND_ROWS.map((row, ri) => (
-          <View key={ri} style={styles.legendRow}>
-            {row.map((title, ci) =>
-              title ? (
-                <View key={title} style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: getRoleColor(title) }]} />
-                  <Text style={styles.legendText} numberOfLines={1}>{title}</Text>
-                </View>
-              ) : (
-                <View key={`gap-${ci}`} style={styles.legendItem} />
-              )
-            )}
-          </View>
-        ))}
+        <View style={styles.legendRow}>
+          {REGULAR_TITLES.slice(0, 3).map(title => (
+            <View key={title} style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: getRoleColor(title) }]} />
+              <Text style={styles.legendText} numberOfLines={1}>{title}</Text>
+            </View>
+          ))}
+        </View>
+        <View style={styles.legendRow}>
+          {REGULAR_TITLES.slice(3, 6).map(title => (
+            <View key={title} style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: getRoleColor(title) }]} />
+              <Text style={styles.legendText} numberOfLines={1}>{title}</Text>
+            </View>
+          ))}
+        </View>
+        <View style={styles.legendRowCenter}>
+          <View style={[styles.legendDot, { backgroundColor: getRoleColor(NIGHT_SHIFT_TITLE) }]} />
+          <Text style={styles.legendText} numberOfLines={1}>{NIGHT_SHIFT_TITLE}</Text>
+        </View>
       </View>
 
       <ShiftDrawer
@@ -245,6 +246,13 @@ const styles = StyleSheet.create({
   legendRow: {
     flexDirection: 'row',
     gap: 8,
+  },
+  legendRowCenter: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 2,
   },
   legendItem: {
     flex: 1,

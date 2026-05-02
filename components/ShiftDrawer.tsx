@@ -236,10 +236,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#F2F2F7', alignItems: 'center',
   },
   durationBtnActive: { backgroundColor: '#007AFF', borderColor: '#007AFF' },
-  durationBtnDisabled: { backgroundColor: '#F2F2F7', borderColor: '#e0e0e0', opacity: 0.35 },
+  durationBtnDisabled: { backgroundColor: '#E5E5EA', borderColor: '#D1D1D6' },
   durationText: { fontSize: 14, fontWeight: '600', color: '#1d1d1f' },
   durationTextActive: { color: 'white' },
-  durationTextDisabled: { color: '#C7C7CC' },
+  durationTextDisabled: { color: '#AEAEB2', fontWeight: '400' },
 
   endTimeRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',

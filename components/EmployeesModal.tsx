@@ -19,6 +19,7 @@ export default function EmployeesModal({ visible, onClose }: Props) {
   const [roleOpen, setRoleOpen] = useState(false);
   const [closingTime, setClosingTimeState] = useState('21:00');
   const [savingTime, setSavingTime] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle');
 
   const reload = async () => {
     const [data, ct] = await Promise.all([getEmployees(), getClosingTime()]);
@@ -46,8 +47,13 @@ export default function EmployeesModal({ visible, onClose }: Props) {
 
   const handleSaveClosingTime = async () => {
     setSavingTime(true);
+    setSaveStatus('idle');
     try {
       await setClosingTime(closingTime);
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    } catch {
+      setSaveStatus('error');
     } finally {
       setSavingTime(false);
     }
@@ -70,11 +76,18 @@ export default function EmployeesModal({ visible, onClose }: Props) {
                 <TimePicker value={closingTime} onChange={setClosingTimeState} placeholder="Set closing time" />
               </View>
               <TouchableOpacity
-                style={[styles.saveTimeBtn, savingTime && styles.saveTimeBtnDisabled]}
+                style={[
+                  styles.saveTimeBtn,
+                  savingTime && styles.saveTimeBtnDisabled,
+                  saveStatus === 'saved' && styles.saveTimeBtnSaved,
+                  saveStatus === 'error' && styles.saveTimeBtnError,
+                ]}
                 onPress={handleSaveClosingTime}
                 disabled={savingTime}
               >
-                <Text style={styles.saveTimeBtnText}>{savingTime ? 'Saving…' : 'Save'}</Text>
+                <Text style={styles.saveTimeBtnText}>
+                  {savingTime ? 'Saving…' : saveStatus === 'saved' ? 'Saved ✓' : saveStatus === 'error' ? 'Failed' : 'Save'}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -171,6 +184,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 10, marginTop: 0, justifyContent: 'center',
   },
   saveTimeBtnDisabled: { opacity: 0.5 },
+  saveTimeBtnSaved: { backgroundColor: '#34C759' },
+  saveTimeBtnError: { backgroundColor: '#FF3B30' },
   saveTimeBtnText: { color: 'white', fontWeight: '600', fontSize: 14 },
 
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#e0e0e0', marginVertical: 12 },
