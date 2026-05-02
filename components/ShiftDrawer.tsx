@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import type { Employee, Shift } from '../db/database';
 import TimePicker from './TimePicker';
-import { getRoleColor } from '../constants/roles';
+import { getRoleColor, isNightShift } from '../constants/roles';
 
 const DURATIONS = [4, 5, 6, 7, 8, 9];
 
@@ -25,17 +25,37 @@ function deriveDuration(start: string, end: string): number {
   return Math.min(9, Math.max(4, hours));
 }
 
+function isDurationValid(
+  startTime: string,
+  hours: number,
+  closingTime: string,
+  nightShift: boolean,
+): boolean {
+  if (nightShift || !startTime) return true;
+  const endTime = calcEndTime(startTime, hours);
+  const [ch, cm] = closingTime.split(':').map(Number);
+  const maxMin = ch * 60 + cm + 30;
+  const [eh, em] = endTime.split(':').map(Number);
+  const endMin = eh * 60 + em;
+  // Handle midnight wrap: if end is next day (< start), treat as > maxMin
+  const [sh, sm] = startTime.split(':').map(Number);
+  const startMin = sh * 60 + sm;
+  const adjustedEndMin = endMin < startMin ? endMin + 1440 : endMin;
+  return adjustedEndMin <= maxMin;
+}
+
 type Props = {
   visible: boolean;
   date: string | null;
   shift: Shift | null;
   employees: Employee[];
+  closingTime: string;
   onSave: (employeeId: number, startTime: string, endTime: string) => void;
   onDelete: () => void;
   onClose: () => void;
 };
 
-export default function ShiftDrawer({ visible, date, shift, employees, onSave, onDelete, onClose }: Props) {
+export default function ShiftDrawer({ visible, date, shift, employees, closingTime, onSave, onDelete, onClose }: Props) {
   const [selectedEmployee, setSelectedEmployee] = useState<number | null>(null);
   const [startTime, setStartTime] = useState('');
   const [duration, setDuration] = useState(8);
@@ -53,6 +73,18 @@ export default function ShiftDrawer({ visible, date, shift, employees, onSave, o
       }
     }
   }, [visible, shift, employees]);
+
+  const selectedEmployeeRole = employees.find(e => e.id === selectedEmployee)?.role ?? '';
+  const nightShift = isNightShift(selectedEmployeeRole);
+
+  // Auto-adjust duration to first valid one when start time or employee changes
+  useEffect(() => {
+    if (!startTime || nightShift) return;
+    if (!isDurationValid(startTime, duration, closingTime, nightShift)) {
+      const firstValid = DURATIONS.find(h => isDurationValid(startTime, h, closingTime, nightShift));
+      if (firstValid !== undefined) setDuration(firstValid);
+    }
+  }, [startTime, selectedEmployee, closingTime]);
 
   const endTime = startTime ? calcEndTime(startTime, duration) : '';
 
@@ -102,27 +134,46 @@ export default function ShiftDrawer({ visible, date, shift, employees, onSave, o
               style={styles.chipList}
             />
 
-            {/* Start time */}
             <Text style={styles.label}>Start Time</Text>
             <TimePicker value={startTime} onChange={setStartTime} placeholder="Select start time" />
 
-            {/* Duration */}
             <Text style={[styles.label, { marginTop: 14 }]}>Shift Duration</Text>
+            {!nightShift && startTime && (
+              <Text style={styles.closingNote}>
+                Closes {closingTime} · max end {(() => {
+                  const [ch, cm] = closingTime.split(':').map(Number);
+                  const max = ch * 60 + cm + 30;
+                  return `${String(Math.floor(max / 60) % 24).padStart(2, '0')}:${String(max % 60).padStart(2, '0')}`;
+                })()}
+              </Text>
+            )}
             <View style={styles.durationRow}>
-              {DURATIONS.map(h => (
-                <TouchableOpacity
-                  key={h}
-                  style={[styles.durationBtn, duration === h && styles.durationBtnActive]}
-                  onPress={() => setDuration(h)}
-                >
-                  <Text style={[styles.durationText, duration === h && styles.durationTextActive]}>
-                    {h}h
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              {DURATIONS.map(h => {
+                const valid = isDurationValid(startTime, h, closingTime, nightShift);
+                const active = duration === h;
+                return (
+                  <TouchableOpacity
+                    key={h}
+                    style={[
+                      styles.durationBtn,
+                      active && styles.durationBtnActive,
+                      !valid && styles.durationBtnDisabled,
+                    ]}
+                    onPress={() => valid && setDuration(h)}
+                    activeOpacity={valid ? 0.7 : 1}
+                  >
+                    <Text style={[
+                      styles.durationText,
+                      active && styles.durationTextActive,
+                      !valid && styles.durationTextDisabled,
+                    ]}>
+                      {h}h
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
-            {/* Auto end time */}
             {startTime ? (
               <View style={styles.endTimeRow}>
                 <Text style={styles.endTimeLabel}>Ends at</Text>
@@ -165,7 +216,6 @@ const styles = StyleSheet.create({
   label: { fontSize: 13, color: '#6e6e73', marginBottom: 6 },
   noStaff: { color: '#6e6e73', textAlign: 'center', marginVertical: 20 },
 
-  // Employee chips
   chipList: { marginBottom: 16 },
   chip: {
     flexDirection: 'row', alignItems: 'center',
@@ -177,7 +227,8 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 14, color: '#1d1d1f' },
   chipTextSelected: { color: 'white', fontWeight: '600' },
 
-  // Duration
+  closingNote: { fontSize: 11, color: '#FF9500', marginBottom: 6 },
+
   durationRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   durationBtn: {
     flex: 1, paddingVertical: 10, borderRadius: 10,
@@ -185,10 +236,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#F2F2F7', alignItems: 'center',
   },
   durationBtnActive: { backgroundColor: '#007AFF', borderColor: '#007AFF' },
+  durationBtnDisabled: { backgroundColor: '#F2F2F7', borderColor: '#e0e0e0', opacity: 0.35 },
   durationText: { fontSize: 14, fontWeight: '600', color: '#1d1d1f' },
   durationTextActive: { color: 'white' },
+  durationTextDisabled: { color: '#C7C7CC' },
 
-  // End time display
   endTimeRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 8, marginBottom: 16,
@@ -201,7 +253,6 @@ const styles = StyleSheet.create({
     marginBottom: 16, fontStyle: 'italic',
   },
 
-  // Actions
   saveBtn: {
     backgroundColor: '#007AFF', borderRadius: 12,
     padding: 14, alignItems: 'center', marginBottom: 8,

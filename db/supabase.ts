@@ -107,3 +107,20 @@ export async function deleteShift(id: number): Promise<void> {
   const { error } = await supabase.from('shifts').delete().eq('id', id);
   if (error) throw error;
 }
+
+export async function getClosingTime(): Promise<string> {
+  const { data, error } = await supabase
+    .from('settings')
+    .select('value')
+    .eq('key', 'closing_time')
+    .single();
+  if (error) return '21:00';
+  return (data as { value: string }).value;
+}
+
+export async function setClosingTime(time: string): Promise<void> {
+  const { error } = await supabase
+    .from('settings')
+    .upsert({ key: 'closing_time', value: time });
+  if (error) throw error;
+}

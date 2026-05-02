@@ -3,8 +3,9 @@ import {
   Modal, View, Text, StyleSheet, TouchableOpacity,
   TextInput, ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { addEmployee, deleteEmployee, getEmployees, type Employee } from '../db/database';
+import { addEmployee, deleteEmployee, getEmployees, getClosingTime, setClosingTime, type Employee } from '../db/database';
 import { STAFF_TITLES, getRoleColor } from '../constants/roles';
+import TimePicker from './TimePicker';
 
 type Props = {
   visible: boolean;
@@ -16,10 +17,13 @@ export default function EmployeesModal({ visible, onClose }: Props) {
   const [name, setName] = useState('');
   const [role, setRole] = useState<string>(STAFF_TITLES[0]);
   const [roleOpen, setRoleOpen] = useState(false);
+  const [closingTime, setClosingTimeState] = useState('21:00');
+  const [savingTime, setSavingTime] = useState(false);
 
   const reload = async () => {
-    const data = await getEmployees();
+    const [data, ct] = await Promise.all([getEmployees(), getClosingTime()]);
     setEmployees(data);
+    setClosingTimeState(ct);
   };
 
   useEffect(() => {
@@ -40,6 +44,15 @@ export default function EmployeesModal({ visible, onClose }: Props) {
     reload();
   };
 
+  const handleSaveClosingTime = async () => {
+    setSavingTime(true);
+    try {
+      await setClosingTime(closingTime);
+    } finally {
+      setSavingTime(false);
+    }
+  };
+
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
@@ -48,6 +61,26 @@ export default function EmployeesModal({ visible, onClose }: Props) {
         <Text style={styles.title}>Manage Staff</Text>
 
         <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          {/* Closing time section */}
+          <View style={styles.closingSection}>
+            <Text style={styles.sectionLabel}>Department Closing Time</Text>
+            <Text style={styles.closingHint}>Non-night-shift staff can't end later than 30 min after this.</Text>
+            <View style={styles.closingRow}>
+              <View style={styles.closingPicker}>
+                <TimePicker value={closingTime} onChange={setClosingTimeState} placeholder="Set closing time" />
+              </View>
+              <TouchableOpacity
+                style={[styles.saveTimeBtn, savingTime && styles.saveTimeBtnDisabled]}
+                onPress={handleSaveClosingTime}
+                disabled={savingTime}
+              >
+                <Text style={styles.saveTimeBtnText}>{savingTime ? 'Saving…' : 'Save'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.divider} />
+
           {employees.length === 0 && (
             <Text style={styles.empty}>No staff yet. Add someone below.</Text>
           )}
@@ -119,7 +152,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     padding: 20,
     paddingBottom: 40,
-    maxHeight: '80%',
+    maxHeight: '85%',
   },
   handle: {
     width: 40, height: 4, backgroundColor: '#e0e0e0',
@@ -127,6 +160,21 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 17, fontWeight: '600', marginBottom: 12, color: '#1d1d1f' },
   empty: { color: '#6e6e73', textAlign: 'center', paddingVertical: 20 },
+
+  closingSection: { marginBottom: 12 },
+  sectionLabel: { fontSize: 13, fontWeight: '600', color: '#1d1d1f', marginBottom: 4 },
+  closingHint: { fontSize: 11, color: '#6e6e73', marginBottom: 10 },
+  closingRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  closingPicker: { flex: 1 },
+  saveTimeBtn: {
+    backgroundColor: '#007AFF', borderRadius: 10,
+    paddingHorizontal: 16, paddingVertical: 10, marginTop: 0, justifyContent: 'center',
+  },
+  saveTimeBtnDisabled: { opacity: 0.5 },
+  saveTimeBtnText: { color: 'white', fontWeight: '600', fontSize: 14 },
+
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#e0e0e0', marginVertical: 12 },
+
   row: {
     flexDirection: 'row', alignItems: 'center',
     paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e0e0e0',

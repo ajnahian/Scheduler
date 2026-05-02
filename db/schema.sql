@@ -13,3 +13,13 @@ CREATE TABLE IF NOT EXISTS shifts (
   start_time  TEXT NOT NULL,
   end_time    TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS settings (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
+INSERT INTO settings (key, value) VALUES ('closing_time', '21:00')
+  ON CONFLICT (key) DO NOTHING;
+
+ALTER TABLE settings DISABLE ROW LEVEL SECURITY;

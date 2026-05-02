@@ -2,14 +2,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  getShiftsForWeek, getEmployees,
+  getShiftsForWeek, getEmployees, getClosingTime,
   addShift, updateShift, deleteShift,
   type Shift, type Employee,
 } from '../db/database';
 import WeekView from '../components/WeekView';
 import ShiftDrawer from '../components/ShiftDrawer';
 import EmployeesModal from '../components/EmployeesModal';
-import { STAFF_TITLES, getRoleColor } from '../constants/roles';
+import { STAFF_TITLES, NIGHT_SHIFT_TITLE, getRoleColor } from '../constants/roles';
 
 function toDateString(d: Date): string {
   const y = d.getFullYear();
@@ -31,10 +31,18 @@ function addDays(date: Date, days: number): Date {
   return d;
 }
 
+// Split into two rows: 3 regular titles per row, Night Shift centered on last row
+const LEGEND_ROWS: (typeof STAFF_TITLES[number] | null)[][] = [
+  [STAFF_TITLES[0], STAFF_TITLES[1], STAFF_TITLES[2]],
+  [STAFF_TITLES[3], STAFF_TITLES[4], STAFF_TITLES[5]],
+  [null, NIGHT_SHIFT_TITLE, null],
+];
+
 export default function Index() {
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [closingTime, setClosingTime] = useState('21:00');
   const [drawerDate, setDrawerDate] = useState<string | null>(null);
   const [drawerShift, setDrawerShift] = useState<Shift | null>(null);
   const [showEmployees, setShowEmployees] = useState(false);
@@ -44,12 +52,14 @@ export default function Index() {
   const loadData = useCallback(async () => {
     try {
       setError(null);
-      const [fetchedShifts, fetchedEmployees] = await Promise.all([
+      const [fetchedShifts, fetchedEmployees, ct] = await Promise.all([
         getShiftsForWeek(toDateString(weekStart)),
         getEmployees(),
+        getClosingTime(),
       ]);
       setShifts(fetchedShifts);
       setEmployees(fetchedEmployees);
+      setClosingTime(ct);
     } catch (e: any) {
       setError(e?.message ?? 'Failed to connect to database.');
     } finally {
@@ -148,12 +158,20 @@ export default function Index() {
         onEditShift={openEditShift}
       />
 
-      {/* Legend */}
+      {/* Legend — 3 columns, Night Shift centered on its own row */}
       <View style={styles.legend}>
-        {STAFF_TITLES.map(title => (
-          <View key={title} style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: getRoleColor(title) }]} />
-            <Text style={styles.legendText} numberOfLines={1}>{title}</Text>
+        {LEGEND_ROWS.map((row, ri) => (
+          <View key={ri} style={styles.legendRow}>
+            {row.map((title, ci) =>
+              title ? (
+                <View key={title} style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: getRoleColor(title) }]} />
+                  <Text style={styles.legendText} numberOfLines={1}>{title}</Text>
+                </View>
+              ) : (
+                <View key={`gap-${ci}`} style={styles.legendItem} />
+              )
+            )}
           </View>
         ))}
       </View>
@@ -163,6 +181,7 @@ export default function Index() {
         date={drawerDate}
         shift={drawerShift}
         employees={employees}
+        closingTime={closingTime}
         onSave={handleSave}
         onDelete={handleDelete}
         onClose={closeDrawer}
@@ -179,7 +198,6 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F2F2F7' },
 
-  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -195,7 +213,6 @@ const styles = StyleSheet.create({
   weekLabel: { fontSize: 15, fontWeight: '700', color: '#1d1d1f' },
   coverageLabel: { fontSize: 12, color: '#6e6e73', marginTop: 1 },
 
-  // Sub-header
   subHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -217,28 +234,27 @@ const styles = StyleSheet.create({
   },
   staffBtnText: { color: 'white', fontWeight: '600', fontSize: 13 },
 
-  // Legend
   legend: {
     backgroundColor: 'white',
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#e0e0e0',
     paddingHorizontal: 14,
     paddingVertical: 10,
+    gap: 6,
+  },
+  legendRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    rowGap: 6,
-    columnGap: 8,
+    gap: 8,
   },
   legendItem: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    width: '48%',
     gap: 6,
   },
   legendDot: { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
   legendText: { fontSize: 11, color: '#1d1d1f', flex: 1 },
 
-  // Error / loading
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   centerText: { fontSize: 15, color: '#6e6e73' },
   errorTitle: { fontSize: 17, fontWeight: '600', color: '#1d1d1f', marginBottom: 8 },
