@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import type { Employee, Shift } from '../db/database';
 import TimePicker from './TimePicker';
+import { getRoleColor } from '../constants/roles';
 
 type Props = {
   visible: boolean;
@@ -63,16 +64,21 @@ export default function ShiftDrawer({ visible, date, shift, employees, onSave, o
               data={employees}
               keyExtractor={e => String(e.id)}
               showsHorizontalScrollIndicator={false}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[styles.chip, selectedEmployee === item.id && styles.chipSelected]}
-                  onPress={() => setSelectedEmployee(item.id)}
-                >
-                  <Text style={[styles.chipText, selectedEmployee === item.id && styles.chipTextSelected]}>
-                    {item.name}
-                  </Text>
-                </TouchableOpacity>
-              )}
+              renderItem={({ item }) => {
+                const color = getRoleColor(item.role);
+                const isSelected = selectedEmployee === item.id;
+                return (
+                  <TouchableOpacity
+                    style={[styles.chip, isSelected && { backgroundColor: color, borderColor: color }]}
+                    onPress={() => setSelectedEmployee(item.id)}
+                  >
+                    <View style={[styles.chipDot, { backgroundColor: isSelected ? 'rgba(255,255,255,0.7)' : color }]} />
+                    <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
+                      {item.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              }}
               style={styles.chipList}
             />
 
@@ -121,13 +127,14 @@ const styles = StyleSheet.create({
   noStaff: { color: '#6e6e73', textAlign: 'center', marginVertical: 20 },
   chipList: { marginBottom: 16 },
   chip: {
-    paddingHorizontal: 14, paddingVertical: 8,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 12, paddingVertical: 8,
     borderRadius: 20, borderWidth: 1, borderColor: '#e0e0e0',
-    marginRight: 8, backgroundColor: '#f5f5f7',
+    marginRight: 8, backgroundColor: '#f5f5f7', gap: 6,
   },
-  chipSelected: { backgroundColor: '#007aff', borderColor: '#007aff' },
+  chipDot: { width: 8, height: 8, borderRadius: 4 },
   chipText: { fontSize: 14, color: '#1d1d1f' },
-  chipTextSelected: { color: 'white' },
+  chipTextSelected: { color: 'white', fontWeight: '600' },
   timeRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
   timeField: { flex: 1 },
   saveBtn: {
