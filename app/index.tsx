@@ -37,14 +37,23 @@ export default function Index() {
   const [drawerDate, setDrawerDate] = useState<string | null>(null);
   const [drawerShift, setDrawerShift] = useState<Shift | null>(null);
   const [showEmployees, setShowEmployees] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
-    const [fetchedShifts, fetchedEmployees] = await Promise.all([
-      getShiftsForWeek(toDateString(weekStart)),
-      getEmployees(),
-    ]);
-    setShifts(fetchedShifts);
-    setEmployees(fetchedEmployees);
+    try {
+      setError(null);
+      const [fetchedShifts, fetchedEmployees] = await Promise.all([
+        getShiftsForWeek(toDateString(weekStart)),
+        getEmployees(),
+      ]);
+      setShifts(fetchedShifts);
+      setEmployees(fetchedEmployees);
+    } catch (e: any) {
+      setError(e?.message ?? 'Failed to connect to database.');
+    } finally {
+      setLoading(false);
+    }
   }, [weekStart]);
 
   useEffect(() => {
@@ -89,6 +98,30 @@ export default function Index() {
     closeDrawer();
     loadData();
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centered}>
+          <Text style={styles.centerText}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centered}>
+          <Text style={styles.errorTitle}>Connection Error</Text>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={loadData}>
+            <Text style={styles.staffBtnText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -162,4 +195,9 @@ const styles = StyleSheet.create({
   },
   navBtn: { padding: 4 },
   navBtnText: { color: '#007aff', fontSize: 14, fontWeight: '500' },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  centerText: { fontSize: 15, color: '#6e6e73' },
+  errorTitle: { fontSize: 17, fontWeight: '600', color: '#1d1d1f', marginBottom: 8 },
+  errorText: { fontSize: 14, color: '#6e6e73', textAlign: 'center', marginBottom: 20 },
+  retryBtn: { backgroundColor: '#007aff', borderRadius: 8, paddingHorizontal: 20, paddingVertical: 10 },
 });
