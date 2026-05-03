@@ -109,11 +109,23 @@ export async function deleteShift(id: number): Promise<void> {
   if (error) throw error;
 }
 
-export async function getClosingTime(): Promise<string> {
-  const val = await AsyncStorage.getItem('closing_time');
-  return val ?? '21:00';
+export type ClosingTimes = Record<number, string>; // 0=Sun … 6=Sat
+
+const DEFAULT_CLOSING_TIMES: ClosingTimes = {
+  0: '21:00', 1: '21:00', 2: '21:00', 3: '21:00',
+  4: '21:00', 5: '21:00', 6: '21:00',
+};
+
+export async function getClosingTimes(): Promise<ClosingTimes> {
+  const val = await AsyncStorage.getItem('closing_times');
+  if (!val) return { ...DEFAULT_CLOSING_TIMES };
+  try {
+    return { ...DEFAULT_CLOSING_TIMES, ...JSON.parse(val) };
+  } catch {
+    return { ...DEFAULT_CLOSING_TIMES };
+  }
 }
 
-export async function setClosingTime(time: string): Promise<void> {
-  await AsyncStorage.setItem('closing_time', time);
+export async function setClosingTimes(times: ClosingTimes): Promise<void> {
+  await AsyncStorage.setItem('closing_times', JSON.stringify(times));
 }

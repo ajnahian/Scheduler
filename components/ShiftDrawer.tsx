@@ -3,7 +3,7 @@ import {
   Modal, View, Text, StyleSheet, TouchableOpacity,
   FlatList, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import type { Employee, Shift } from '../db/database';
+import type { Employee, Shift, ClosingTimes } from '../db/database';
 import TimePicker from './TimePicker';
 import { getRoleColor, isNightShift } from '../constants/roles';
 
@@ -49,14 +49,17 @@ type Props = {
   date: string | null;
   shift: Shift | null;
   employees: Employee[];
-  closingTime: string;
+  closingTimes: ClosingTimes;
   defaultEmployeeId?: number | null;
   onSave: (employeeId: number, startTime: string, endTime: string) => void;
   onDelete: () => void;
   onClose: () => void;
 };
 
-export default function ShiftDrawer({ visible, date, shift, employees, closingTime, defaultEmployeeId, onSave, onDelete, onClose }: Props) {
+export default function ShiftDrawer({ visible, date, shift, employees, closingTimes, defaultEmployeeId, onSave, onDelete, onClose }: Props) {
+  // Derive the closing time for the specific day this shift is on
+  const dayOfWeek = date ? new Date(date + 'T00:00:00').getDay() : 0;
+  const closingTime = closingTimes[dayOfWeek] ?? '21:00';
   const [selectedEmployee, setSelectedEmployee] = useState<number | null>(null);
   const [startTime, setStartTime] = useState('');
   const [duration, setDuration] = useState(8);

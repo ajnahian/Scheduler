@@ -7,11 +7,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
   addEmployee, deleteEmployee, getEmployees,
-  getClosingTime, setClosingTime,
-  type Employee,
+  getClosingTimes, setClosingTimes,
+  type Employee, type ClosingTimes,
 } from '../db/database';
 import { STAFF_TITLES, getRoleColor } from '../constants/roles';
 import TimePicker from '../components/TimePicker';
+
+const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+const DEFAULT_TIMES: ClosingTimes = {
+  0: '21:00', 1: '21:00', 2: '21:00', 3: '21:00',
+  4: '21:00', 5: '21:00', 6: '21:00',
+};
 
 export default function StaffScreen() {
   const router = useRouter();
@@ -19,15 +26,14 @@ export default function StaffScreen() {
   const [name, setName] = useState('');
   const [role, setRole] = useState<string>(STAFF_TITLES[0]);
   const [roleOpen, setRoleOpen] = useState(false);
-  const [closingTime, setClosingTimeState] = useState('21:00');
+  const [closingTimes, setClosingTimesState] = useState<ClosingTimes>({ ...DEFAULT_TIMES });
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle');
-  const [saveError, setSaveError] = useState('');
 
   const reload = async () => {
-    const [data, ct] = await Promise.all([getEmployees(), getClosingTime()]);
+    const [data, ct] = await Promise.all([getEmployees(), getClosingTimes()]);
     setEmployees(data);
-    setClosingTimeState(ct);
+    setClosingTimesState(ct);
   };
 
   useEffect(() => { reload(); }, []);
@@ -46,17 +52,19 @@ export default function StaffScreen() {
     await reload();
   };
 
-  const handleSaveClosingTime = async () => {
+  const updateDay = (dayIdx: number, time: string) => {
+    setClosingTimesState(prev => ({ ...prev, [dayIdx]: time }));
+  };
+
+  const handleSaveClosingTimes = async () => {
     setSaving(true);
     setSaveStatus('idle');
-    setSaveError('');
     try {
-      await setClosingTime(closingTime);
+      await setClosingTimes(closingTimes);
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
-    } catch (e: any) {
+    } catch {
       setSaveStatus('error');
-      setSaveError(e?.message ?? 'Unknown error');
     } finally {
       setSaving(false);
     }
@@ -66,7 +74,6 @@ export default function StaffScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Staff Setup</Text>
         {canViewSchedule && (
@@ -86,38 +93,40 @@ export default function StaffScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* ── Closing time ── */}
+          {/* ── Closing times per day ── */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Department Closing Time</Text>
+            <Text style={styles.cardTitle}>Closing Times by Day</Text>
             <Text style={styles.cardHint}>
-              Non-night-shift staff cannot end more than 30 min after this time.
+              Non-night-shift staff cannot end more than 30 min after the day's closing time.
             </Text>
-            <View style={styles.closingRow}>
-              <View style={styles.closingPickerWrap}>
-                <TimePicker
-                  value={closingTime}
-                  onChange={setClosingTimeState}
-                  placeholder="Set closing time"
-                />
+
+            {DAYS_OF_WEEK.map((day, idx) => (
+              <View key={idx} style={styles.dayRow}>
+                <Text style={styles.dayLabel}>{day}</Text>
+                <View style={styles.dayPickerWrap}>
+                  <TimePicker
+                    value={closingTimes[idx] ?? '21:00'}
+                    onChange={t => updateDay(idx, t)}
+                    placeholder="Set time"
+                  />
+                </View>
               </View>
-              <TouchableOpacity
-                style={[
-                  styles.saveTimeBtn,
-                  saving && styles.btnDisabled,
-                  saveStatus === 'saved' && styles.btnSaved,
-                  saveStatus === 'error' && styles.btnError,
-                ]}
-                onPress={handleSaveClosingTime}
-                disabled={saving}
-              >
-                <Text style={styles.saveTimeBtnText}>
-                  {saving ? 'Saving…' : saveStatus === 'saved' ? 'Saved ✓' : saveStatus === 'error' ? 'Failed' : 'Save'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            {saveStatus === 'error' && saveError ? (
-              <Text style={styles.errorMsg}>{saveError}</Text>
-            ) : null}
+            ))}
+
+            <TouchableOpacity
+              style={[
+                styles.saveTimesBtn,
+                saving && styles.btnDisabled,
+                saveStatus === 'saved' && styles.btnSaved,
+                saveStatus === 'error' && styles.btnError,
+              ]}
+              onPress={handleSaveClosingTimes}
+              disabled={saving}
+            >
+              <Text style={styles.saveTimesBtnText}>
+                {saving ? 'Saving…' : saveStatus === 'saved' ? 'Saved ✓' : saveStatus === 'error' ? 'Failed — try again' : 'Save Closing Times'}
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* ── Current staff ── */}
@@ -194,7 +203,6 @@ export default function StaffScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* ── View schedule ── */}
           {canViewSchedule && (
             <TouchableOpacity style={styles.viewScheduleBtn} onPress={() => router.back()}>
               <Text style={styles.viewScheduleBtnText}>View Schedule →</Text>
@@ -243,19 +251,29 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 15, fontWeight: '700', color: '#1d1d1f' },
   cardHint: { fontSize: 12, color: '#6e6e73', marginTop: -4 },
 
-  // Closing time
-  closingRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  closingPickerWrap: { flex: 1 },
-  saveTimeBtn: {
-    backgroundColor: '#007AFF', borderRadius: 10,
-    paddingHorizontal: 16, paddingVertical: 11,
-    justifyContent: 'center',
+  // Per-day closing time rows
+  dayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
-  saveTimeBtnText: { color: 'white', fontWeight: '600', fontSize: 14 },
+  dayLabel: {
+    width: 90,
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1d1d1f',
+    flexShrink: 0,
+  },
+  dayPickerWrap: { flex: 1 },
+
+  saveTimesBtn: {
+    backgroundColor: '#007AFF', borderRadius: 10,
+    paddingVertical: 12, alignItems: 'center', marginTop: 4,
+  },
+  saveTimesBtnText: { color: 'white', fontWeight: '600', fontSize: 15 },
   btnDisabled: { opacity: 0.45 },
   btnSaved: { backgroundColor: '#34C759' },
   btnError: { backgroundColor: '#FF3B30' },
-  errorMsg: { fontSize: 11, color: '#FF3B30' },
 
   // Staff list
   emptyMsg: { fontSize: 13, color: '#6e6e73', textAlign: 'center', paddingVertical: 8 },
@@ -308,7 +326,6 @@ const styles = StyleSheet.create({
   },
   addBtnText: { color: 'white', fontWeight: '600', fontSize: 15 },
 
-  // View schedule
   viewScheduleBtn: {
     backgroundColor: '#007AFF', borderRadius: 12,
     paddingVertical: 15, alignItems: 'center',

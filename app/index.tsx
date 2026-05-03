@@ -3,9 +3,9 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import {
-  getShiftsForWeek, getEmployees, getClosingTime,
+  getShiftsForWeek, getEmployees, getClosingTimes,
   addShift, updateShift, deleteShift,
-  type Shift, type Employee,
+  type Shift, type Employee, type ClosingTimes,
 } from '../db/database';
 import ScheduleGrid from '../components/ScheduleGrid';
 import ShiftDrawer from '../components/ShiftDrawer';
@@ -38,7 +38,10 @@ export default function Index() {
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [closingTime, setClosingTime] = useState('21:00');
+  const [closingTimes, setClosingTimes] = useState<ClosingTimes>({
+    0: '21:00', 1: '21:00', 2: '21:00', 3: '21:00',
+    4: '21:00', 5: '21:00', 6: '21:00',
+  });
   const [drawerDate, setDrawerDate] = useState<string | null>(null);
   const [drawerShift, setDrawerShift] = useState<Shift | null>(null);
   const [drawerEmployeeId, setDrawerEmployeeId] = useState<number | null>(null);
@@ -54,11 +57,11 @@ export default function Index() {
       const [fetchedShifts, fetchedEmployees, ct] = await Promise.all([
         getShiftsForWeek(toDateString(weekStart)),
         getEmployees(),
-        getClosingTime(),
+        getClosingTimes(),
       ]);
       setShifts(fetchedShifts);
       setEmployees(fetchedEmployees);
-      setClosingTime(ct);
+      setClosingTimes(ct);
     } catch (e: any) {
       setError(e?.message ?? 'Failed to connect to database.');
     } finally {
@@ -210,7 +213,7 @@ export default function Index() {
         date={drawerDate}
         shift={drawerShift}
         employees={employees}
-        closingTime={closingTime}
+        closingTimes={closingTimes}
         defaultEmployeeId={drawerEmployeeId}
         onSave={handleSave}
         onDelete={handleDelete}
