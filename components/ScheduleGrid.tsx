@@ -1,12 +1,21 @@
 import { useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import {
+  View, Text, StyleSheet, ScrollView,
+  TouchableOpacity, useWindowDimensions,
+} from 'react-native';
 import type { Employee, Shift } from '../db/database';
 import { getRoleColor } from '../constants/roles';
 
-const EMP_W = 130;
-const DAY_W = 92;
 const HEADER_H = 54;
 const ROW_H = 78;
+const DAYS = 7;
+
+// Mobile fixed sizes
+const EMP_W_MOBILE = 130;
+const DAY_W_MOBILE = 92;
+
+// Wide breakpoint
+const WIDE = 768;
 
 function todayString(): string {
   const d = new Date();
@@ -30,6 +39,15 @@ type Props = {
 };
 
 export default function ScheduleGrid({ dates, employees, shifts, onAddShift, onEditShift }: Props) {
+  const { width: screenWidth } = useWindowDimensions();
+  const isWide = screenWidth >= WIDE;
+
+  // On wide screens, divide remaining width evenly across 7 day columns
+  const empW = isWide ? Math.max(160, Math.floor(screenWidth * 0.14)) : EMP_W_MOBILE;
+  const dayW = isWide
+    ? Math.floor((screenWidth - empW) / DAYS)
+    : DAY_W_MOBILE;
+
   const today = todayString();
   const headerScrollRef = useRef<ScrollView>(null);
   const rowScrollRefs = useRef<(ScrollView | null)[]>([]);
@@ -55,21 +73,25 @@ export default function ScheduleGrid({ dates, employees, shifts, onAddShift, onE
   return (
     <View style={styles.container}>
       {/* Fixed header row */}
-      <View style={styles.headerRow}>
-        <View style={styles.cornerCell}>
+      <View style={[styles.headerRow, { height: HEADER_H }]}>
+        <View style={[styles.cornerCell, { width: empW }]}>
           <Text style={styles.cornerText}>STAFF</Text>
         </View>
         <ScrollView
           ref={headerScrollRef}
           horizontal
-          scrollEnabled={false}
+          scrollEnabled={!isWide}
           showsHorizontalScrollIndicator={false}
+          style={isWide ? styles.headerScrollWide : undefined}
         >
           {dates.map(dateStr => {
             const { weekday, date } = parseDayHeader(dateStr);
             const isToday = dateStr === today;
             return (
-              <View key={dateStr} style={[styles.dayHeader, isToday && styles.dayHeaderToday]}>
+              <View
+                key={dateStr}
+                style={[styles.dayHeader, { width: dayW, height: HEADER_H }, isToday && styles.dayHeaderToday]}
+              >
                 <Text style={[styles.dayWeekday, isToday && styles.dayTextToday]}>{weekday}</Text>
                 <Text style={[styles.dayDate, isToday && styles.dayTextToday]}>{date}</Text>
               </View>
@@ -81,9 +103,9 @@ export default function ScheduleGrid({ dates, employees, shifts, onAddShift, onE
       {/* Scrollable employee rows */}
       <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
         {employees.map((emp, rowIdx) => (
-          <View key={emp.id} style={[styles.row, rowIdx % 2 === 1 && styles.rowAlt]}>
+          <View key={emp.id} style={[styles.row, { height: ROW_H }, rowIdx % 2 === 1 && styles.rowAlt]}>
             {/* Fixed employee name cell */}
-            <View style={styles.empCell}>
+            <View style={[styles.empCell, { width: empW }]}>
               <View style={[styles.roleBar, { backgroundColor: getRoleColor(emp.role) }]} />
               <View style={styles.empText}>
                 <Text style={styles.empName} numberOfLines={1}>{emp.name}</Text>
@@ -91,22 +113,26 @@ export default function ScheduleGrid({ dates, employees, shifts, onAddShift, onE
               </View>
             </View>
 
-            {/* Horizontally scrolling day cells — all rows share the same x offset */}
+            {/* Day cells — horizontally scrollable on mobile, full-width on wide */}
             <ScrollView
               horizontal
               ref={r => { rowScrollRefs.current[rowIdx] = r; }}
-              onScroll={e => syncScroll(rowIdx, e.nativeEvent.contentOffset.x)}
+              onScroll={isWide ? undefined : e => syncScroll(rowIdx, e.nativeEvent.contentOffset.x)}
               scrollEventThrottle={16}
-              showsHorizontalScrollIndicator={rowIdx === employees.length - 1}
+              scrollEnabled={!isWide}
+              showsHorizontalScrollIndicator={!isWide && rowIdx === employees.length - 1}
             >
               {dates.map(dateStr => {
                 const isToday = dateStr === today;
                 const shift = shifts.find(s => s.employee_id === emp.id && s.date === dateStr);
                 return (
-                  <View key={dateStr} style={[styles.cell, isToday && styles.cellToday]}>
+                  <View
+                    key={dateStr}
+                    style={[styles.cell, { width: dayW, height: ROW_H }, isToday && styles.cellToday]}
+                  >
                     {shift ? (
                       <TouchableOpacity
-                        style={[styles.shiftBlock, { backgroundColor: getRoleColor(emp.role) }]}
+                        style={[styles.shiftBlock, { width: dayW - 12, backgroundColor: getRoleColor(emp.role) }]}
                         onPress={() => onEditShift(shift)}
                         activeOpacity={0.75}
                       >
@@ -145,7 +171,6 @@ const styles = StyleSheet.create({
   // Header
   headerRow: {
     flexDirection: 'row',
-    height: HEADER_H,
     backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
@@ -154,8 +179,8 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
+  headerScrollWide: { flex: 1 },
   cornerCell: {
-    width: EMP_W,
     justifyContent: 'flex-end',
     paddingLeft: 12,
     paddingBottom: 8,
@@ -164,8 +189,6 @@ const styles = StyleSheet.create({
   },
   cornerText: { fontSize: 10, fontWeight: '700', color: '#8E8E93', letterSpacing: 0.8 },
   dayHeader: {
-    width: DAY_W,
-    height: HEADER_H,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
@@ -181,7 +204,6 @@ const styles = StyleSheet.create({
   body: { flex: 1 },
   row: {
     flexDirection: 'row',
-    height: ROW_H,
     backgroundColor: 'white',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#e0e0e0',
@@ -190,7 +212,6 @@ const styles = StyleSheet.create({
 
   // Employee cell
   empCell: {
-    width: EMP_W,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -205,8 +226,6 @@ const styles = StyleSheet.create({
 
   // Day cells
   cell: {
-    width: DAY_W,
-    height: ROW_H,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 5,
@@ -216,7 +235,6 @@ const styles = StyleSheet.create({
   cellToday: { backgroundColor: '#F0F7FF' },
 
   shiftBlock: {
-    width: DAY_W - 12,
     borderRadius: 8,
     paddingVertical: 7,
     paddingHorizontal: 4,
