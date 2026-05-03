@@ -50,12 +50,13 @@ type Props = {
   shift: Shift | null;
   employees: Employee[];
   closingTime: string;
+  defaultEmployeeId?: number | null;
   onSave: (employeeId: number, startTime: string, endTime: string) => void;
   onDelete: () => void;
   onClose: () => void;
 };
 
-export default function ShiftDrawer({ visible, date, shift, employees, closingTime, onSave, onDelete, onClose }: Props) {
+export default function ShiftDrawer({ visible, date, shift, employees, closingTime, defaultEmployeeId, onSave, onDelete, onClose }: Props) {
   const [selectedEmployee, setSelectedEmployee] = useState<number | null>(null);
   const [startTime, setStartTime] = useState('');
   const [duration, setDuration] = useState(8);
@@ -67,12 +68,12 @@ export default function ShiftDrawer({ visible, date, shift, employees, closingTi
         setStartTime(shift.start_time);
         setDuration(deriveDuration(shift.start_time, shift.end_time));
       } else {
-        setSelectedEmployee(employees[0]?.id ?? null);
+        setSelectedEmployee(defaultEmployeeId ?? employees[0]?.id ?? null);
         setStartTime('');
         setDuration(8);
       }
     }
-  }, [visible, shift, employees]);
+  }, [visible, shift, employees, defaultEmployeeId]);
 
   const selectedEmployeeRole = employees.find(e => e.id === selectedEmployee)?.role ?? '';
   const nightShift = isNightShift(selectedEmployeeRole);

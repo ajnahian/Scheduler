@@ -1,14 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter, useFocusEffect } from 'expo-router';
 import {
   getShiftsForWeek, getEmployees, getClosingTime,
   addShift, updateShift, deleteShift,
   type Shift, type Employee,
 } from '../db/database';
-import WeekView from '../components/WeekView';
+import ScheduleGrid from '../components/ScheduleGrid';
 import ShiftDrawer from '../components/ShiftDrawer';
-import EmployeesModal from '../components/EmployeesModal';
 import { STAFF_TITLES, NIGHT_SHIFT_TITLE, getRoleColor } from '../constants/roles';
 
 function toDateString(d: Date): string {
@@ -34,15 +34,19 @@ function addDays(date: Date, days: number): Date {
 const REGULAR_TITLES = STAFF_TITLES.slice(0, 6);
 
 export default function Index() {
+  const router = useRouter();
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [closingTime, setClosingTime] = useState('21:00');
   const [drawerDate, setDrawerDate] = useState<string | null>(null);
   const [drawerShift, setDrawerShift] = useState<Shift | null>(null);
-  const [showEmployees, setShowEmployees] = useState(false);
+  const [drawerEmployeeId, setDrawerEmployeeId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Only redirect to /staff once on the very first load with no employees
+  const didInitialRedirect = useRef(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -62,9 +66,19 @@ export default function Index() {
     }
   }, [weekStart]);
 
+  // Reload when week changes
+  useEffect(() => { loadData(); }, [loadData]);
+
+  // Reload when returning to this screen from /staff (picks up new employees)
+  useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+
+  // On first load with no employees, navigate to staff setup
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (!loading && !didInitialRedirect.current && employees.length === 0 && !error) {
+      didInitialRedirect.current = true;
+      router.replace('/staff');
+    }
+  }, [loading, employees.length, error]);
 
   const weekDates = Array.from({ length: 7 }, (_, i) => toDateString(addDays(weekStart, i)));
 
@@ -74,9 +88,21 @@ export default function Index() {
     return `${weekStart.toLocaleDateString('en-US', opts)} – ${end.toLocaleDateString('en-US', opts)}`;
   })();
 
-  const openAddShift = (date: string) => { setDrawerShift(null); setDrawerDate(date); };
-  const openEditShift = (shift: Shift) => { setDrawerShift(shift); setDrawerDate(shift.date); };
-  const closeDrawer = () => { setDrawerDate(null); setDrawerShift(null); };
+  const openAddShift = (date: string, employeeId?: number) => {
+    setDrawerShift(null);
+    setDrawerDate(date);
+    setDrawerEmployeeId(employeeId ?? null);
+  };
+  const openEditShift = (shift: Shift) => {
+    setDrawerShift(shift);
+    setDrawerDate(shift.date);
+    setDrawerEmployeeId(null);
+  };
+  const closeDrawer = () => {
+    setDrawerDate(null);
+    setDrawerShift(null);
+    setDrawerEmployeeId(null);
+  };
 
   const handleSave = async (employeeId: number, startTime: string, endTime: string) => {
     if (drawerShift) {
@@ -98,7 +124,7 @@ export default function Index() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centered}>
-          <Text style={styles.centerText}>Loading...</Text>
+          <Text style={styles.centerText}>Loading…</Text>
         </View>
       </SafeAreaView>
     );
@@ -136,24 +162,26 @@ export default function Index() {
         </TouchableOpacity>
       </View>
 
-      {/* Today + Staff actions */}
+      {/* Today + Staff */}
       <View style={styles.subHeader}>
         <TouchableOpacity style={styles.todayBtn} onPress={() => setWeekStart(getWeekStart(new Date()))}>
           <Text style={styles.todayBtnText}>Today</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.staffBtn} onPress={() => setShowEmployees(true)}>
+        <TouchableOpacity style={styles.staffBtn} onPress={() => router.push('/staff')}>
           <Text style={styles.staffBtnText}>Staff</Text>
         </TouchableOpacity>
       </View>
 
-      <WeekView
+      {/* Schedule grid */}
+      <ScheduleGrid
         dates={weekDates}
+        employees={employees}
         shifts={shifts}
         onAddShift={openAddShift}
         onEditShift={openEditShift}
       />
 
-      {/* Legend — 3 columns, Night Shift centered on its own row */}
+      {/* Legend */}
       <View style={styles.legend}>
         <View style={styles.legendRow}>
           {REGULAR_TITLES.slice(0, 3).map(title => (
@@ -183,14 +211,10 @@ export default function Index() {
         shift={drawerShift}
         employees={employees}
         closingTime={closingTime}
+        defaultEmployeeId={drawerEmployeeId}
         onSave={handleSave}
         onDelete={handleDelete}
         onClose={closeDrawer}
-      />
-
-      <EmployeesModal
-        visible={showEmployees}
-        onClose={() => { setShowEmployees(false); loadData(); }}
       />
     </SafeAreaView>
   );
@@ -243,10 +267,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     gap: 6,
   },
-  legendRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
+  legendRow: { flexDirection: 'row', gap: 8 },
   legendRowCenter: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -254,12 +275,7 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: 2,
   },
-  legendItem: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
+  legendItem: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
   legendText: { fontSize: 11, color: '#1d1d1f', flex: 1 },
 
